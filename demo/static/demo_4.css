@@ -1,0 +1,58 @@
+body {
+  margin: 0;
+}
+
+#chat_table {
+  width: 100vw;
+  height: 100vh;
+}
+#chat_table > tbody > tr > td {
+  vertical-align: top;
+  padding: 0.5em;
+}
+#chat_table > tbody> tr > td:first-of-type {
+  width: 15em;
+  background-color: #EEE;
+}
+
+.title {
+  margin-bottom: 0.5em;
+  text-align: center;
+}
+.chat_room {
+  cursor: pointer;
+  padding: 0.5em;
+  border: 1px solid transparent;
+  border-radius: 0.25em;
+}
+.chat_room.selected {
+  font-weight: bold;
+  border: 1px solid #666;
+}
+.chat_room:hover {
+  background-color: #CCC;
+}
+
+#entry_td {
+  width: 100%;
+}
+#entry {
+  width: 100%;
+}
+#send {
+  margin-left: 0.8em;
+}
+
+.message {
+  background-color: #D5E8CE;
+  border-radius: 0.5em;
+  margin: 0.5em;
+  padding: 0.5em;
+}
+.message.self {
+  background-color: #EEE;
+}
+.message_header {
+  font-size: 80%;
+  color: #666;
+}

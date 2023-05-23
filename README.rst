@@ -89,7 +89,7 @@ Contact "Jiba" Jean-Baptiste Lamy:
 
   <jean-baptiste.lamy *@* univ-paris13 *.* fr>
   LIMICS
-  Université Sorbonne Paris Nord, Sorbonne Université, INSERM
+  INSERM, Université Sorbonne Paris Nord, Sorbonne Université
   Bureau 149
   74 rue Marcel Cachin
   93017 BOBIGNY

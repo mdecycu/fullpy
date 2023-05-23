@@ -1,0 +1,76 @@
+#popup_window {
+  position: fixed;
+  width: 100%;
+  min-height: 100%;
+  left: 0px;
+  top: 0px;
+  z-index: 1;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+#popup_window_content {
+  background-color: white;
+  border-radius: 0.7em;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 1.5em;
+  margin-bottom: 2em;
+  width: max-content;
+  max-width: 80%;
+  padding: 2em;
+  overflow-y: scroll;
+}
+.close_button {
+  float: right;
+  cursor: pointer;
+  color: gray;
+  font-size: 200%;
+  font-family: sans-serif;
+  margin-right: -1em;
+  margin-top: -1em;
+  padding-right: 0.3em;
+  padding-left: 0.3em;
+}
+.close_button:hover {
+  color: black;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+#login_box h2 {
+  text-align: center;
+  margin-top: 0px;
+}
+#login_box table {
+  margin-left: auto;
+  margin-right: auto;
+}
+#login_info {
+  color: red;
+  font-weight: bold;
+}
+#login_button {
+  width: 100%;
+  margin-top: 1.5em;
+  height: 2em;
+}
+#login, #password {
+  width: 20em;
+}
+#toggle_password {
+  margin: 0px;
+  margin-left: -1.5em;
+  cursor: pointer;
+  display: inline-block;
+  line-height: 1;
+  padding: 0px;
+  box-sizing: border-box;
+}
+#toggle_password::before {
+  content: "👁";
+}
+
+#new_room {
+  margin-top: 1em;
+}
+#ok {
+  width: 100%;
+}
