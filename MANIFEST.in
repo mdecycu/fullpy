@@ -1,0 +1,33 @@
+global-include *.py
+global-include *.txt
+global-include *.owl
+global-include *.rst
+global-include *.png
+global-include *.svg
+
+graft doc
+#graft test
+graft ontos
+graft locale
+graft demo
+
+include ./LICENSE.txt
+include ./README.rst
+
+exclude .hg
+exclude .hg/*
+exclude .git
+exclude .git/*
+exclude .gitignore
+exclude demo/static/*_brython_modules.js
+exclude demo/static/*_py_list.txt
+#exclude demo/static/brython*.js
+
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.save
+global-exclude catalog-v001.xml
+global-exclude __pycache__
+
+exclude test/*
+exclude test/static/*
