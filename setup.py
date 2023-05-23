@@ -63,6 +63,7 @@ def do_setup(extensions):
     'owlready2',
     'gunicorn',
     'gevent',
+    'flask',
   ],
   )
 
