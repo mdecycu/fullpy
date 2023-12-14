@@ -40,10 +40,11 @@ with chat_onto:
   class Message(Thing):
     def as_tuple(self):
       return ("%s/%s/%s %s:%s" % (self.date.day, self.date.month, self.date.year,
-                                  self.date.hour, self.date.minute), self.user.login, self.text)
+                                  self.date.hour, self.date.minute), self.author.login, self.text)
     
   class text(Message >> str, FunctionalProperty): pass
   class date(Message >> datetime.datetime, FunctionalProperty): pass
+  class author(Message >> MyUser, FunctionalProperty): pass
   class messages(ChatRoom >> Message): pass
   
   chat_onto.MyUser("user1", login = "user1", password = "123")
@@ -91,10 +92,10 @@ class MyWebApp(ServerSideWebapp):
   def server_add_message(self, session, text):
     chat_room = session.groups[0]
     with chat_onto:
-      message = chat_onto.Message(date = datetime.datetime.now(), user = session.user, text = text)
+      message = chat_onto.Message(date = datetime.datetime.now(), author = session.user, text = text)
       chat_room.messages.append(message)
     chat_room.client_new_message(None, *message.as_tuple())
-    
+    chat_onto.graph.dump()
     
 from fullpy.server.gunicorn_backend import *
 serve_forever([MyWebApp()], "http://127.0.0.1:5000")

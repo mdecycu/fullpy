@@ -59,6 +59,15 @@ class Translator(object):
     
   def __getitem__(self, key):
     return self._current_dict.get(key) or self._default_dict.get(key, key)
+
+  def format(self, a, b):
+    s = a % b
+    r = self._current_dict.get(s)
+    if r: return r
+    ra = self._current_dict.get(a)
+    rb = self._current_dict.get(b, b)
+    if ra and rb: return ra % rb
+    return self._default_dict.get(s) or self._default_dict.get(a, a) % self._default_dict.get(b, b)
   
   def from_entity(self, e):
     return e.label.get_lang_first(self._lang) or e.label.get_lang_first(self._default_lang) or e.name
@@ -67,7 +76,7 @@ class Translator(object):
     return annot.get_lang_first(self._lang) or annot.get_lang_first(self._default_lang) or annot.first() or ""
   
   def dict_from_annotation(self, annot):
-    return { getattr(i, "lang", "") : i for i in annot }
+    return { getattr(i, "lang", "") : str(i) for i in annot }
   
   def from_dict(self, d):
     return d.get(self._lang) or d.get(self._default_lang) or d.get("")

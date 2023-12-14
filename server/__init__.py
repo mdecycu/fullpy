@@ -43,6 +43,15 @@ def _gevent_patch_translator():
   def __getitem__(self, key):
     return l.current_dict.get(key) or self._default_dict.get(key, key)
   
+  def format(self, a, b):
+    s = a % b
+    r = l.current_dict.get(s)
+    if r: return r
+    ra = l.current_dict.get(a)
+    rb = l.current_dict.get(b, b)
+    if ra and rb: return ra % rb
+    return self._default_dict.get(s) or self._default_dict.get(a, a) % self._default_dict.get(b, b)
+  
   def from_entity(self, e):
     return e.label.get_lang(l.lang).first() or e.label.get_lang(self._default_lang).first() or e.name
   

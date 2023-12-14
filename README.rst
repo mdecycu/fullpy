@@ -1,7 +1,7 @@
 FullPy
 ======
 
-FullPy is a high-level Python module for developing client-server web application. Here are the main features:
+FullPy is a Python module for developing client-server web application. Here are the main features:
 
  * Both client and server are written in Python, and can share pieces of code.
    FullPy uses `Brython <https://brython.info/>`_ for client-side execution of Python in the web browser.
