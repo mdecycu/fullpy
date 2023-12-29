@@ -71,7 +71,7 @@ class MyWebApp(ClientSideWebapp):
 class ChatRoomList(HTML):
   # def build(self, builder):
   #   def done(chat_room_names):
-  #     self << """<div id="chat_room_list"><div class="title">FullPy Chat rooms :</div>"""
+  #     self << """<div id="chat_room_list"><div class="title">FullPy Chat rooms:</div>"""
   #     for name, label in sorted(chat_room_names.items(), key = lambda i: i[1]):
   #       if name == webapp.chat_room:
   #         self << """<div id="chat_room_%s" class="chat_room selected">%s</div>""" % (name, label)
@@ -86,7 +86,7 @@ class ChatRoomList(HTML):
   #   webapp.server_get_chat_room_names(done)
     
   def build(self, builder):
-    self << """<div id="chat_room_list"><div class="title">FullPy Chat rooms :</div>"""
+    self << """<div id="chat_room_list"><div class="title">FullPy Chat rooms:</div>"""
     for name, label in sorted(webapp.chat_room_names.items(), key = lambda i: i[1]):
       if name == webapp.chat_room:
         self << """<div id="chat_room_%s" class="chat_room selected">%s</div>""" % (name, label)
@@ -106,8 +106,8 @@ class ChatRoomList(HTML):
 
 class NewRoomDialog(HTML):
   def build(self, builder):
-    self << """<h2>Create new chat room :</h2>"""
-    self << """Room label : <input id="chat_room_label" type="text"></input><br/><br/>"""
+    self << """<h2>Create new chat room:</h2>"""
+    self << """Room label: <input id="chat_room_label" type="text"></input><br/><br/>"""
     self << """<input id="ok" type="button" value="Ok"></input>"""
     self.bind("ok", "click", self.on_ok)
     
@@ -130,7 +130,7 @@ class MessageView(HTML):
       html = """<div class="message self">"""
     else:
       html = """<div class="message">"""
-    html += """<div class="message_header">%s (%s) :</div>""" % (user_login, date)
+    html += """<div class="message_header">%s (%s):</div>""" % (user_login, date)
     html += """<div class="message_content">%s</div></div>""" % message_text
     return html
   
@@ -155,6 +155,7 @@ class EntryBox(HTML):
     text = document["entry"].value.strip()
     if text:
       webapp.server_add_message(None, text)
+      document["entry"].value = ""
       
       
 MyWebApp()

@@ -19,6 +19,7 @@
 __all__ = ["Serializer"]
 
 import weakref
+from datetime import date, datetime, timedelta
 from fullpy.util import TRANS
 
 
@@ -135,6 +136,9 @@ class Serializer(object):
     if isinstance(x, list):  return "[%s]" % ",".join(self._encode(i, dico) for i in x)
     if isinstance(x, tuple): return "(%s)" % ",".join(self._encode(i, dico) for i in x)
     if isinstance(x, dict): return "{%s}" % ",".join("%s:%s" % (self._encode(k, dico), self._encode(v, dico)) for (k, v) in x.items())
+    if isinstance(x, datetime):  return "datetime(%s)" % ",".join(str(i) for i in x.timetuple()[:7])
+    if isinstance(x, date):      return "date(%s,%s,%s)" % (x.year, x.month, x.day)
+    if isinstance(x, timedelta): return "timedelta(%s,%s,%s)" % (x.days, x.seconds, x.microseconds)
     
     storid = getattr(x, "storid", None)
     if x in dico:
@@ -302,6 +306,18 @@ class Serializer(object):
         v, i = self._decode(s, i + 1) # + 1 for :
         r[k] = v
       return r, i + 1 # + 1 for }
+    
+    elif s.startswith("datetime(", i):
+      j = s.find(")", i + 9)
+      return datetime(*(int(i) for i in s[i + 9 : j].split(","))), j + 1
+
+    elif s.startswith("date(", i):
+      j = s.find(")", i + 5)
+      return date(*(int(i) for i in s[i + 5 : j].split(","))), j + 1
+
+    elif s.startswith("timedelta(", i):
+      j = s.find(")", i + 10)
+      return timedelta(*(int(i) for i in s[i + 10 : j].split(","))), j + 1
 
     if s[i] in _NUMBER:
       j = i + 1

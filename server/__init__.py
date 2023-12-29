@@ -56,7 +56,10 @@ def _gevent_patch_translator():
     return e.label.get_lang(l.lang).first() or e.label.get_lang(self._default_lang).first() or e.name
   
   def from_annotation(self, annot):
-    return annot.get_lang(l.lang).first() or annot.get_lang(self._default_lang).first()
+    return annot.get_lang_first(l.lang) or annot.get_lang_first(self._default_lang) or annot.first() or ""
+  
+  def from_dict(self, d):
+    return d.get(l.lang) or d.get(self._default_lang) or d.get("", "")
   
   Translator.__init__        = __init__
   Translator.set_lang        = set_lang

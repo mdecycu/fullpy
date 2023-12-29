@@ -95,7 +95,6 @@ class MyWebApp(ServerSideWebapp):
       message = chat_onto.Message(date = datetime.datetime.now(), author = session.user, text = text)
       chat_room.messages.append(message)
     chat_room.client_new_message(None, *message.as_tuple())
-    chat_onto.graph.dump()
     
 from fullpy.server.gunicorn_backend import *
 serve_forever([MyWebApp()], "http://127.0.0.1:5000")

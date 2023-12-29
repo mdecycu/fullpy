@@ -79,6 +79,6 @@ class Translator(object):
     return { getattr(i, "lang", "") : str(i) for i in annot }
   
   def from_dict(self, d):
-    return d.get(self._lang) or d.get(self._default_lang) or d.get("")
+    return d.get(self._lang) or d.get(self._default_lang) or d.get("", "")
   
 TRANS = Translator()
