@@ -24,11 +24,33 @@ from fullpy.serializer import Serializer
 
 _initial_data = None
 
+
+def format_error_message(exctype, value, tb):
+  import linecache
+  
+  r = ""
+  while tb is not None:
+    if tb.tb_lasti < 0: lineno, end_lineno, colno, end_colno = None, None, None, None
+    else:               lineno, end_lineno, colno, end_colno = list(tb.tb_frame.f_code.co_positions())[tb.tb_lasti // 2]
+    if lineno is None:  lineno = tb.tb_lineno
+    
+    filename = tb.tb_frame.f_code.co_filename
+    name     = tb.tb_frame.f_code.co_name
+    
+    r += '  File "%s", line %s, in %s\n' % (filename, lineno, name)
+    r += '    %s\n' % linecache.getline(filename, lineno).strip()
+    tb = tb.tb_next
+    
+  r += "%s: %s" % (exctype.__name__, value.args[0])
+  return r
+
 def try_debug(f):
   def f2(*args, **kargs):
     try:
       f(*args, **kargs)
     except Exception as e:
+      error = format_error_message(*sys.exc_info())
+      webapp.server_fullpy_log_client_error(None, error)
       sys.excepthook(*sys.exc_info())
   f2.__name__ = f.__name__
   return f2
@@ -56,7 +78,7 @@ class HTML:
     return self
   __lshift__ = __iadd__ = add
   
-  def bind(self, html_id, event, func): self._bindings.append((html_id, event, func))
+  def bind(self, html_id, event, func): self._bindings.append((html_id, event, try_debug(func)))
   
   def exec_bindings(self):
     for i in self._bindings:

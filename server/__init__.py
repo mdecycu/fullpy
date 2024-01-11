@@ -112,7 +112,9 @@ class ServerSideWebapp(object):
         func = getattr(self, attr)
         if getattr(func.__func__, "__rpc__", False) == True:
           self.rpc_funcs[func.__name__] = func
-      
+          
+    self.rpc(self.server_fullpy_log_client_error)
+    
   def set_external_static_folder(self, static_folder, static_url_path):
     self.static_folder = static_folder
     self.blueprint.static_url_path = static_url_path
@@ -358,4 +360,7 @@ from browser import window
     if session:
       if session.user: session.user.webapp_lang = lang
       else:            session.     webapp_lang = lang
+      
+  def server_fullpy_log_client_error(self, session, error):
+    print("Client-side traceback (most recent call last):\n%s" % error, file = sys.stderr)
     

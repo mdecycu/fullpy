@@ -55,7 +55,7 @@ class GUnicornWebSocketManager(BaseWebSocketManager):
         
         func_name, call_id, data = message.split(" ", 2)
         data = self.serializer.decode(data)
-        if self.debug: print("Message received from %s: %s(%s)" % (session.session_id or session.session_token, func_name, repr(data)[1:-1]), file = sys.stderr)
+        if self.debug: print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session.session_id or session.session_token, func_name, repr(data)[1:-1]), file = sys.stderr)
         call_id = int(call_id)
         
         if func_name == "__ok__":

@@ -65,14 +65,14 @@ class AjaxManager(BaseManager):
             if self.debug:
               raw_data = flask.request.data.decode("utf8")
               session_token, *data = self.serializer.decode(raw_data)
-              print("Message received from %s: %s(%s)" % (session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+              print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
             return self.serializer.encode(func(None, *data))
           
         else:
           def wrapper(func = func):
             raw_data = flask.request.data.decode("utf8")
             session_token, *data = self.serializer.decode(raw_data)
-            if self.debug: print("Message received from %s: %s(%s)" % (session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+            if self.debug: print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
             
             session = self._get_ajax_session(session_token)
             if session is None:

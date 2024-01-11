@@ -75,6 +75,9 @@ class WebSocketManager(object):
         try:
           done(self.serializer.decode(data))
         except Exception as e:
+          from fullpy.client import format_error_message
+          error = format_error_message(*sys.exc_info())
+          webapp.server_fullpy_log_client_error(None, error)
           sys.excepthook(*sys.exc_info())
           
     else:
@@ -84,6 +87,9 @@ class WebSocketManager(object):
       try:
         response = func(*self.serializer.decode(data))
       except Exception as e:
+        from fullpy.client import format_error_message
+        error = format_error_message(*sys.exc_info())
+        webapp.server_fullpy_log_client_error(None, error)
         sys.excepthook(*sys.exc_info())
         
       if call_id: self.ws.send("__ok__ %s %s" % (call_id, self.serializer.encode(response)))

@@ -23,28 +23,12 @@ def getmtime(path, default = 0):
   except FileNotFoundError: return default
 
 
-blacklisted_modules = [ "posix", "posixpath", "traceback", "typing", "ast", "_dummy_thread", "argparse", "doctest", "importlib", "importlib.machinery", "importlib.util", "importlib._bootstrap", "importlib._bootstrap_external" ]
+blacklisted_modules = [ "traceback", "typing", "ast", "_dummy_thread", "argparse", "doctest", "importlib", "importlib.machinery", "importlib.util", "importlib._bootstrap", "importlib._bootstrap_external" ]
 
 def compile_client(static_folder, client_files = [], webapp_name = "", force = False, minify_python_code = False, ignored_modules = [], extra_python_path = []):
   if not os.access(static_folder, os.W_OK):
     print("\n* FullPy * Skip client Brython compilation of webapp %s ; %s is not writable!" % (webapp_name, static_folder), file = sys.stderr)
     return
-  
-  # brython_js     = os.path.join(os.path.dirname(brython.__file__), "data", "brython.js")
-  # brython_stdlib = os.path.join(os.path.dirname(brython.__file__), "data", "brython_stdlib.js")
-  
-  # static_js     = os.path.join(static_folder, "brython.js")
-  # static_stdlib = os.path.join(static_folder, "brython_stdlib.js")
-  
-  # import brython, shutil
-  # if (not os.path.exists(static_js)) or (os.path.getmtime(static_js) < os.path.getmtime(brython_js)):
-  #   print("cp", brython_js, static_js, file = sys.stderr)
-  #   shutil.copyfile(brython_js, static_js)
-  #   force = True
-  # if (not os.path.exists(static_stdlib)) or (os.path.getmtime(static_stdlib) < os.path.getmtime(brython_stdlib)):
-  #   print("cp", brython_stdlib, static_stdlib, file = sys.stderr)
-  #   shutil.copyfile(brython_stdlib, static_stdlib)
-  #   force = True
   
   if webapp_name:
     BRYTHON_MODULE = os.path.join(static_folder, "%s_brython_modules.js" % webapp_name)
@@ -152,6 +136,7 @@ def load_script(path):
   for name in imports: load_user_module(name)
     
 def load_user_module(name):
+  if name == "os.path": name = "posixpath"
   if (name in stdlib) or (name in user_modules): return
   
   path = None
@@ -172,6 +157,10 @@ def load_user_module(name):
         break
       
   if path is None:
+    #logger.error("Unable to find module %s", name)
+    return
+      
+  if path == "frozen":
     #logger.error("Unable to find module %s", name)
     return
   

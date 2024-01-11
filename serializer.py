@@ -228,7 +228,7 @@ class Serializer(object):
         
       elif category == "$bases":
         bases, i = self._decode(s, i + 10)
-        bases = bases or (_OntologyObjProxy,)
+        bases = tuple(bases) or (_OntologyObjProxy,)
         d = {}
         while s[i] != "}":
           k, i = self._decode(s, i + 1) # + 1 for ,
@@ -238,19 +238,24 @@ class Serializer(object):
         name = d.pop("name")
         onto = d.pop("onto")
         
-        if r:
-          r.__name__  = name
-          r.__bases__ = tuple(bases)
-        else:
-          r = type(name, tuple(bases), {})
-          if not self.world: self._cache_storid[storid] = r
-          
-        if d: r.__dict__.update(d)
         module = self.modules_proxy.get_ontology(onto)
-        r.namespace = module
-        setattr(module, name, r)
+        if not r:
+          r = module.get_class(name)
+          if r:
+            r.namespace = module
+            self._cache_storid[storid] = r          
+        if r:
+          #r.__name__ = name
+          if r.__bases__ != bases: r.__bases__ = bases
+        else:
+          r = type(name, bases, {})
+          if not self.world: self._cache_storid[storid] = r
+          if d: r.__dict__.update(d)
+          module.add_class(r)
+          r.namespace = module
+          
         return r, i + 1 # + 1 for }
-    
+      
     elif s.startswith('{"$id"', i):
       id, i = self._decode(s, i + 7)
       r = self._cache_id.get(id)
@@ -278,7 +283,6 @@ class Serializer(object):
       
       elif category == "$bases":
         bases, i = self._decode(s, i + 10)
-        bases = bases or (_PythonObjProxy,)
         
         d = {}
         while s[i] != "}":
@@ -289,13 +293,24 @@ class Serializer(object):
         name0 = d.pop("name")
         module_name, name = name0.rsplit(".", 1)
         
-        if r: r.__name__  = name
-        else: r = self._cache_id[id] = type(name, tuple(bases), {})
-        
-        if d: r.__dict__.update(d)
-        setattr(self.modules_proxy.get_submodule(module_name), name, r)
-
-        r.__remote_name__ = name0
+        #if r:
+        #  r.__name__  = name
+        #else:
+        if not r:
+          module = self.modules_proxy.get_submodule(module_name)
+          r = module.get_class(name)
+          if r:
+            self._cache_id[id] = r
+          else:
+            r = self._cache_id[id] = type(name, tuple(bases) or (_PythonObjProxy,), {})
+            r.__module__      = module_name
+            r.__remote_name__ = name0
+            if d: r.__dict__.update(d)
+            module.add_class(r)
+            
+        #if d: r.__dict__.update(d)
+        #setattr(self.modules_proxy.get_submodule(module_name), name, r)
+        #r.__remote_name__ = name0
         return r, i + 1 # + 1 for }
     
     elif s[i] == "{":
@@ -336,6 +351,7 @@ class _ModuleProxy(type): # Inherits from type so as missing classes are treated
   def __init__(self, name = "", package = ""):
     self.__name__    = name
     self.__package__ = package
+    self._classnames = set()
     
   def __repr__(self):
     if self.__package__:
@@ -361,8 +377,23 @@ class _ModuleProxy(type): # Inherits from type so as missing classes are treated
     module = self
     for part in name.split("."): module = getattr(module, part)
     return module
-
-
+  
+  def get_class(self, name):
+    if name in self._classnames:
+      print("GET CLASS FOUND", getattr(self, name))
+      return getattr(self, name)
+    return None
+  
+  def remote_class(self, module_name, klass = None):
+    module = self.get_submodule(module_name)
+    if klass: module.add_class(klass)
+    else: return module.add_class
+    
+  def add_class(self, klass):
+    setattr(self, klass.__name__, klass)
+    self._classnames.add(klass.__name__)
+    
+  
 def _simple_repr(x):
   if isinstance(x, _ObjProxy): return x.__simplerepr__()
   if isinstance(x, list): return "[%s]" % ", ".join(_simple_repr(i) for i in x)
