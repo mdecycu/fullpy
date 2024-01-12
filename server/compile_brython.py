@@ -250,6 +250,9 @@ scan("re")
 """)
     
     do("""cd %s; %s brython_compile.py""" % (tmp_dir, sys.executable))
-    do("""cp %s %s""" % (os.path.join(tmp_dir, "brython_modules.js"), BRYTHON_MODULE))
-    
+    r = do("""cp %s %s""" % (os.path.join(tmp_dir, "brython_modules.js"), BRYTHON_MODULE))
+    if r:
+      print("* FullPy * Error in webapp client compilation", file = sys.stderr)
+      sys.exit(r)
+      
   print("* FullPy * End of webapp client compilation\n", file = sys.stderr)

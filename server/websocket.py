@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
+import sys, datetime
 import gevent, gevent.timeout
 
 from fullpy.server.base_rpc import *
@@ -34,10 +34,12 @@ class GUnicornWebSocketManager(BaseWebSocketManager):
     try:
       with gevent.Timeout(self.session_max_memory_duration): message = ws0.receive()
     except gevent.timeout.Timeout: return
-
+    
+    address = "%s:%s" % (ws0.environ["REMOTE_ADDR"], ws0.environ["REMOTE_PORT"])
+    
     func_name, call_id, data = message.split(" ", 2)
     session_id, session_token, lang = self.serializer.decode(data)
-    if self.debug: print("First message received from %s: %s(%s)" % (session_id, func_name, repr(data)[1:-1]), file = sys.stderr)
+    if self.debug: print("%s First message received from %s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), address, func_name, repr(data)[1:-1]), file = sys.stderr)
     
     session, response = self.open_session(None, session_id, session_token, lang)
     if not response[0]: session, response = self.open_session(None, "", "", lang)
@@ -55,7 +57,7 @@ class GUnicornWebSocketManager(BaseWebSocketManager):
         
         func_name, call_id, data = message.split(" ", 2)
         data = self.serializer.decode(data)
-        if self.debug: print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session.session_id or session.session_token, func_name, repr(data)[1:-1]), file = sys.stderr)
+        if self.debug: print("%s Message received from %s%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session.user and ("%s@" % session.user.login) or "", address, func_name, repr(data)[1:-1]), file = sys.stderr)
         call_id = int(call_id)
         
         if func_name == "__ok__":

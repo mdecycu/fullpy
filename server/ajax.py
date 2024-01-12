@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, time
+import sys, time, datetime
 import flask
 
 from fullpy.server.base_rpc import *
@@ -58,6 +58,9 @@ class AjaxManager(BaseManager):
     return session
   
   def route(self, app, path):
+    print(app)
+    print(dir(app))
+    
     for func_name, func in self.webapp.rpc_funcs.items():
       if self.webapp.has_session:
         if   func is self.webapp.server_new_session_id:
@@ -65,16 +68,16 @@ class AjaxManager(BaseManager):
             if self.debug:
               raw_data = flask.request.data.decode("utf8")
               session_token, *data = self.serializer.decode(raw_data)
-              print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+              print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
             return self.serializer.encode(func(None, *data))
           
         else:
           def wrapper(func = func):
             raw_data = flask.request.data.decode("utf8")
             session_token, *data = self.serializer.decode(raw_data)
-            if self.debug: print("Message received from %s%s: %s(%s)" % (session.user and ("%s@" % session.user.login) or "", session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
-            
             session = self._get_ajax_session(session_token)
+            
+            if self.debug: print("%s Message received from %s%s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session and session.user and ("%s@" % session.user.login) or "", flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
             if session is None:
               if self.debug: print("Invalid session %s: %s(%s)" % (session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
               return ""
@@ -85,7 +88,7 @@ class AjaxManager(BaseManager):
         def wrapper(func = func):
           raw_data = flask.request.data.decode("utf8")
           data = self.serializer.decode(raw_data)
-          if self.debug: print("Message received: %s(%s)" % (func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+          if self.debug: print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
           return self.serializer.encode(func(None, *data))
         
       wrapper.__name__ = func_name
@@ -96,14 +99,14 @@ class AjaxManager(BaseManager):
       def open_session():
         raw_data = flask.request.data.decode("utf8")
         session_token, *data = self.serializer.decode(raw_data)
-        if self.debug: print("Message received from %s: open_session(%s)" % (session_token, repr(data)[1:-1]), file = sys.stderr)
+        if self.debug: print("%s Message received from %s: open_session(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session_token, repr(data)[1:-1]), file = sys.stderr)
         
         if session_token in self.pending_session_ids: session = None
         else:                                         session = self._get_ajax_session(session_token) # Allow None/failed session here
         new_session, response = self.open_session(session, *data)
         
         if (not response[0]) and ((session_token in self.pending_session_ids) or (session is None)):
-          # Initial login failed OR log in failed and not valid session => start unathentified session
+          # Initial login failed OR log in failed and not valid session => start unauthentified session
           new_session, response = self.open_session(session, "", "", data[2])
           
         return self.serializer.encode(response)
