@@ -58,9 +58,6 @@ class AjaxManager(BaseManager):
     return session
   
   def route(self, app, path):
-    print(app)
-    print(dir(app))
-    
     for func_name, func in self.webapp.rpc_funcs.items():
       if self.webapp.has_session:
         if   func is self.webapp.server_new_session_id:
