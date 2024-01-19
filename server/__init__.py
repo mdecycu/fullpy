@@ -237,8 +237,8 @@ class ServerSideWebapp(object):
     if self.rpc_manager: self.rpc_manager.close_sessions()
     
   def start(self, app, server_url, url_prefix = ""):
-    self.server_url          = server_url
-    self.url_prefix          = url_prefix
+    self.server_url = server_url
+    self.url_prefix = url_prefix
     
     app.register_blueprint(self.blueprint, url_prefix = "%s/%s" % (url_prefix, self.name))
     

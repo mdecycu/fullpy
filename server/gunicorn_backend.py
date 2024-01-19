@@ -1,5 +1,5 @@
 # FullPy
-# Copyright (C) 2022-2023 Jean-Baptiste LAMY
+# Copyright (C) 2022-2024 Jean-Baptiste LAMY
 # LIMICS (Laboratoire d'informatique médicale et d'ingénierie des connaissances en santé), UMR_S 1142
 # INSERM, France
 
@@ -20,6 +20,7 @@ __all__ = ["serve_forever"]
 
 import sys, datetime, gunicorn.app.base, flask
 
+from fullpy.server.base_backend import _split_address
 from fullpy.server import _gevent_patch_translator
 
 class Worker(object):
@@ -33,21 +34,16 @@ class Worker(object):
     Worker.CURRENT_WORKER = None
     
 
-def _split_address(address):
-  protocol, rest = address.split("://", 1)
-  host, port = rest.split(":", 1)
-  port = int(port.split("/", 1)[0])
-  return protocol, host, port
 
-
-def serve_forever(webapps, address = "http://127.0.0.1:5000", url_prefix = "", flask_app = None, log_file = None, nb_process = 1, max_nb_websockect = 5000, worker_class = None, use_gevent = False, gunicorn_options = None):
-  
+def serve_forever(webapps, address = "http://127.0.0.1:5000,http://[::1]:5000", url_prefix = "", flask_app = None, log_file = None, nb_process = 1, max_nb_websockect = 5000, worker_class = None, use_gevent = False, gunicorn_options = None):
   flask_app = flask_app or flask.Flask("fullpy")
   flask_app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(minutes = 30)
+
+  address1 = address.rsplit(",", 1)[-1]
   
   for webapp in webapps:
     if webapp.has_websocket: use_gevent = True
-    webapp.start(flask_app, address, url_prefix)
+    webapp.start(flask_app, address1, url_prefix)
     
   if use_gevent:
     from gevent import monkey
@@ -56,8 +52,8 @@ def serve_forever(webapps, address = "http://127.0.0.1:5000", url_prefix = "", f
     _gevent_patch_translator()
     
   worker_class = worker_class or Worker
-  
-  protocol, host, port = _split_address(address)
+
+  addresses = _split_address(address)
   
   class StandaloneApplication(gunicorn.app.base.BaseApplication):
     def __init__(self):
@@ -73,7 +69,7 @@ def serve_forever(webapps, address = "http://127.0.0.1:5000", url_prefix = "", f
         self.cfg.set("worker_class", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker")
         self.cfg.set("worker_connections", max_nb_websockect)
         
-      self.cfg.set("bind", address[len(protocol) + 3:])
+      self.cfg.set("bind", ["%s:%s" % (host, port) for proto, host, port in addresses])
       if log_file:
         self.cfg.set("capture_output", True)
         self.cfg.set("errorlog", log_file)

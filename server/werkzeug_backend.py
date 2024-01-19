@@ -20,12 +20,7 @@ __all__ = ["serve_forever"]
 
 import sys, flask, atexit, werkzeug.serving
 
-
-def _split_address(address):
-  protocol, rest = address.split("://", 1)
-  host, port = rest.split(":", 1)
-  port = int(port.split("/", 1)[0])
-  return protocol, host, port
+from fullpy.server.base_backend import _split_address
 
   
 def serve_forever(webapps, address = "http://127.0.0.1:5000", url_prefix = "", flask_app = None, log_file = None, nb_process = 1, werkzeug_options = None):
@@ -44,8 +39,9 @@ def serve_forever(webapps, address = "http://127.0.0.1:5000", url_prefix = "", f
       webapp.close_sessions()
       if webapp.world: webapp.world.save()
   atexit.register(cleanup)
-  
-  protocol, host, port = _split_address(address)
+
+  addresses = _split_address(address)
+  protocol, host, port = _split_address(address)[0]
   
   werkzeug.serving.run_simple(
     host, port, flask_app,
