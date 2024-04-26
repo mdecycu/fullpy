@@ -21,6 +21,7 @@ import sys, os, os.path, flask
 from fullpy.util import TRANS
 from fullpy.serializer import Serializer
 
+COMPILE_CLIENT = True
 
 def _gevent_patch_translator():
   from fullpy.util  import Translator
@@ -53,7 +54,7 @@ def _gevent_patch_translator():
     return self._default_dict.get(s) or self._default_dict.get(a, a) % self._default_dict.get(b, b)
   
   def from_entity(self, e):
-    return e.label.get_lang(l.lang).first() or e.label.get_lang(self._default_lang).first() or e.name
+    return e.label.get_lang(l.lang).first() or e.label.get_lang(self._default_lang).first() or e.name.replace("_", " ")
   
   def from_annotation(self, annot):
     return annot.get_lang_first(l.lang) or annot.get_lang_first(self._default_lang) or annot.first() or ""
@@ -114,6 +115,7 @@ class ServerSideWebapp(object):
           self.rpc_funcs[func.__name__] = func
           
     self.rpc(self.server_fullpy_log_client_error)
+    self.rpc(self.server_fullpy_print)
     
   def set_external_static_folder(self, static_folder, static_url_path):
     self.static_folder = static_folder
@@ -187,8 +189,11 @@ class ServerSideWebapp(object):
         set_manager     = BaseGroup.set_manager
         destroy         = BaseGroup.destroy
         on_empty        = BaseGroup.on_empty
-        
-        
+
+  def use_editor(self, editor):
+    from editobj5.server_introsp import Server
+    self.server = Server(self, editor)
+    
   def use_session(self, session_class = None, group_class = None, auth = True, client_reloadable_session = True, session_max_duration = 3888000.0, session_max_memory_duration = 1296000.0):
     if auth and (not self.world): raise ValueError("Need ontology_quadstore for auth! Please call use_ontology_quadstore() before.")
     from fullpy.server.base_rpc import Session, Group
@@ -257,7 +262,7 @@ class ServerSideWebapp(object):
       if self.persistent_session:
         app.teardown_request(self.rpc_manager.destroy_timed_out_persistent_sessions)
         
-    if self.client_file: self.compile_client()
+    if COMPILE_CLIENT and self.client_file: self.compile_client()
     
   def compile_client(self):
     from fullpy.server.compile_brython import compile_client
@@ -305,7 +310,9 @@ class ServerSideWebapp(object):
         html1 += """<script type="text/python">
 from browser import window
 """
-        html1 += """window.WEBAPP_OPTS = { "fullpy" : { "name" : "%s" } }\n""" % self.name
+        static_path = flask.url_for("%s.static" % self.name, filename = "")
+        if static_path.endswith("/"): static_path = static_path[:-1]
+        html1 += """window.WEBAPP_OPTS = {"fullpy":{"name":"%s","static":"%s"}}\n""" % (self.name, static_path)
         
         #if self.has_session:
         #  html1 += """window.WEBAPP_OPTS["session"] = { "client_reloadable_session" : %s""" % self.client_reloadable_session
@@ -325,7 +332,7 @@ from browser import window
         html2 += """import %s\n""" % self.client_module
         html2 += """</script>\n"""
         
-      html2 += """<div id="popup_window" style="display: none;"></div>\n"""
+      html2 += """<div id="popup_window" class="popup_window" style="display: none;"></div>\n"""
       html2 += """</body></html>\n"""
       
       if (not self.has_initial_data) and (not self.has_session):
@@ -364,3 +371,10 @@ from browser import window
   def server_fullpy_log_client_error(self, session, error):
     print("Client-side traceback (most recent call last):\n%s" % error, file = sys.stderr)
     
+  def server_fullpy_print(self, session, *args):
+    print(*args, file = sys.stderr)
+    print()
+
+  def print(self, *args):
+    print(*args, file = sys.stderr)
+    print()

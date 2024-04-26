@@ -25,6 +25,8 @@ from fullpy.serializer import Serializer
 _initial_data = None
 
 
+
+
 def format_error_message(exctype, value, tb):
   import linecache
   
@@ -67,6 +69,8 @@ def delayed(func, delay = 0):
 
 class HTML:
   build = None
+  python_events = set()
+  _python_bindings = None
   
   def __init__(self, html = ""):
     self._bindings = []
@@ -78,8 +82,27 @@ class HTML:
     return self
   __lshift__ = __iadd__ = add
   
-  def bind(self, html_id, event, func): self._bindings.append((html_id, event, try_debug(func)))
-  
+  def bind(self, html_id, event, func = None):
+    if func:
+      self._bindings.append((html_id, event, try_debug(func)))
+    else:
+      func, event = event, html_id
+      if not event in self.python_events: raise ValueError("Unsupported Python event '%s'!" % event)
+      if   self._python_bindings is None:      self._python_bindings = { event : [func] }
+      elif not event in self._python_bindings: self._python_bindings[event] = [func]
+      else:                                    self._python_bindings[event].append(func)
+      
+  def unbind(self, event, func = None):
+    if self._python_bindings and (event in self._python_bindings):
+      if func:
+        self._python_bindings[event].remove(func)
+      else:
+        del self._python_bindings[event]
+        
+  def emit_event(self, event, *args):
+    if self._python_bindings and (event in self._python_bindings):
+      for func in self._python_bindings[event]: func(*args)
+      
   def exec_bindings(self):
     for i in self._bindings:
       if isinstance(i, tuple): document[i[0]].bind(i[1], i[2])
@@ -113,25 +136,62 @@ class HTML:
     self._call_when_ready(done)
     if container == "main_content": HTML.current_main_content = self
     
-  def show_replace(self, replaced_id):
+  def show_replace(self, replaced):
+    if isinstance(replaced, str): replaced = document[replaced]
     def done():
-      replaced = document[replaced_id]
       replaced.insertAdjacentHTML("afterend", self._get_html())
       replaced.remove()
       self.exec_bindings()
     self._call_when_ready(done)
     
+  def show_at_reference(self, reference, pos = "afterend"):
+    if isinstance(reference, str): reference = document[reference]
+    def done():
+      reference.insertAdjacentHTML(pos, self._get_html())
+      self.exec_bindings()
+    self._call_when_ready(done)
+    
+  # def show_popup(self, add_close_button = True, allow_close = True, container = "popup_window"):
+  #   def done():
+  #     html = self._get_html()
+  #     if add_close_button:
+  #       html = """<div id="close_button_%s" class="close_button">X</div>%s""" % (id(self), html)
+  #     html = """<div id="popup_window_content" style="max-height: %spx">%s</div>""" % (0.88 * window.innerHeight, html)
+      
+  #     container_tag = document[container]
+  #     container_tag.innerHTML = html
+  #     container_tag.style.display = "block"
+      
+  #     def hide(e = None): hide_popup(e, container)
+      
+  #     if allow_close:
+  #       def on_escape_popup(e = None):
+  #         if e.key == "Escape":
+  #           e.preventDefault()
+  #           e.stopPropagation()
+  #           hide_popup(e, container)
+  #       document.bind("keyup", on_escape_popup)
+  #       container_tag.bind("click", hide)
+  #       document["popup_window_content"].bind("click", _stop_propagation)
+  #     if add_close_button: document["close_button_%s" % id(self)].bind("click", hide)
+  #     self.exec_bindings()
+  #   self._call_when_ready(done)
+  
   def show_popup(self, add_close_button = True, allow_close = True, container = "popup_window"):
     def done():
       html = self._get_html()
       if add_close_button:
         html = """<div id="close_button_%s" class="close_button">X</div>%s""" % (id(self), html)
-      html = """<div id="popup_window_content" style="max-height: %spx">%s</div>""" % (0.88 * window.innerHeight, html)
+      html = """<div id="popup_window_content_%s" class="popup_window_content" style="max-height: %spx">%s</div>""" % (id(self), 0.88 * window.innerHeight, html)
       
-      container_tag = document[container]
-      container_tag.innerHTML = html
-      container_tag.style.display = "block"
-      
+      if container:
+        container_tag = document[container]
+        container_tag.innerHTML = html
+        container_tag.style.display = "block"
+      else:
+        document["popup_window"].insertAdjacentHTML("beforeend", html)
+        container_tag = document["popup_window_%s" % id(self)]
+        
       def hide(e = None): hide_popup(e, container)
       
       if allow_close:
@@ -142,7 +202,7 @@ class HTML:
             hide_popup(e, container)
         document.bind("keyup", on_escape_popup)
         container_tag.bind("click", hide)
-        document["popup_window_content"].bind("click", _stop_propagation)
+        document["popup_window_content_%s" % id(self)].bind("click", _stop_propagation)
       if add_close_button: document["close_button_%s" % id(self)].bind("click", hide)
       self.exec_bindings()
     self._call_when_ready(done)
@@ -177,36 +237,34 @@ class HTMLBuilder:
     return func
   
  
-def rpc(func):
-  ClientSideWebapp._rpc_funcs.append(func)
-  return func
+#def rpc(func):
+#  ClientSideWebapp._rpc_funcs.append(func)
+#  return func
 
 
- 
-class _TmpWebapp(object):
-  def __init__(self):
-    self.serializer = Serializer(None)
-    self.rpc        = rpc
-    
-
-#__builtins__.webapp = None
-__builtins__.webapp = _TmpWebapp()
-
+webapp = None
 class ClientSideWebapp(object):
-  _rpc_funcs = []
-  def __init__(self):
-    self.serializer    = webapp.serializer
-    __builtins__.webapp = self
-    self.modules_proxy = self.serializer.modules_proxy
-    self.started       = False
-    self.websocket     = None
-    self.ajax          = None
-    self.rpc_manager   = None
-    self.rpc_funcs     = { func.__name__ : getattr(self, func.__name__) for func in ClientSideWebapp._rpc_funcs }
-    del ClientSideWebapp._rpc_funcs
-    self.session_token = ""
-    self.user_login    = ""
-    self.user_class    = ""
+#  _rpc_funcs = []
+  
+  def __new__(Class):
+    global webapp
+    if webapp:
+      webapp.__class__ = Class
+      webapp.init()
+      return webapp
+    
+    self = __builtins__.webapp = webapp = object.__new__(Class)
+    self.serializer     = Serializer(None)
+    self.modules_proxy  = self.serializer.modules_proxy
+    self.started        = False
+    self.websocket      = None
+    self.ajax           = None
+    self.rpc_manager    = None
+    self.rpc_funcs      = {}
+    self._rpc_funcs     = []
+    self.session_token  = ""
+    self.user_login     = ""
+    self.user_class     = ""
     
     query = window.location.href.split("?", 1)
     if len(query) == 2:
@@ -218,9 +276,9 @@ class ClientSideWebapp(object):
       
     lang = self.url_params.get("lang") or (window.navigator.language or window.navigator.languages[0])
     if lang: TRANS.set_lang(lang[:2])
-    
-    #self.serializer = Serializer(None)
-    
+    return self
+  
+  def init(self):
     global _initial_data
     self.initial_data = _initial_data
     if _initial_data: _initial_data = None
@@ -231,8 +289,19 @@ class ClientSideWebapp(object):
     if not "session" in window.WEBAPP_OPTS: self.on_started()
     window.WEBAPP_OPTS = None
     
-  def use_fullpy(self, name):
+    for func in self._rpc_funcs:
+      if func.__code__.co_varnames and func.__code__.co_varnames[0] == "self":
+        self.rpc_funcs[func.__name__] = getattr(self, func.__name__) # Method
+      else:
+        self.rpc_funcs[func.__name__] = func
+    self._rpc_funcs = None
+    
+  def __init__(self):
+    pass
+    
+  def use_fullpy(self, name, static):
     self.name = name
+    self.static_path = static
     
   def use_serializer(self, ignore_none, ignore_empty_list):
     self.serializer.ignore_none       = ignore_none
@@ -295,7 +364,8 @@ class ClientSideWebapp(object):
     self.server_quit_group = rpc_manager.server_quit_group
     
   def rpc(self, func):
-    self.rpc_funcs[func.__name__] = func
+    if not self._rpc_funcs is None: self._rpc_funcs.append(func)
+    else: self.rpc_funcs[func.__name__] = func
     return func
   
   def __getattr__(self, attr):
@@ -311,3 +381,12 @@ class ClientSideWebapp(object):
   def on_session_opened(self, user_login, user_class, client_data): pass
   def on_connexion_lost(self): print("Connexion to server lost...")
   def on_session_lost(self): print("Session lost...")
+  
+  def print(self, *args):
+    args = [str(arg) for arg in args]
+    self.server_fullpy_print(None, *args)
+    print(*args)
+
+__builtins__.webapp = ClientSideWebapp()
+rpc = webapp.rpc
+get_ontology = webapp.serializer.modules_proxy.get_ontology

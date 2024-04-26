@@ -42,10 +42,11 @@ class MyWebApp(ServerSideWebapp):
   @rpc # Mark the function as remotely callable by the client (RPC = remote procedure call)
   def server_hello(self, session): # The name of server-side functions MUST starts with "server_"
     def f():
+      print("!!!")
       gevent.sleep(2.0) # Wait 2 seconds
       session.client_update_speech(None, "Goodbye!") # Call the client_update_speech() remote function on the client
     gevent.spawn(f) # Execute f() in a separate "greenlet" microthread, in parallel
-    
+    print("SPAWN")
     return "Hello world!"
 
 

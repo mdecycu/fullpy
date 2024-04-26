@@ -18,7 +18,7 @@
 
 __all__ = ["int_2_base_62", "create_session_token", "Translator", "TRANS"]
 
-import hashlib
+import sys, hashlib
 
 _BASE_62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 def int_2_base_62(n):
@@ -42,7 +42,8 @@ class Translator(object):
     
   def set_lang(self, lang):
     self._lang = lang
-    self._current_dict = self.dicts.get(lang) or {}
+    if lang in self.dicts: self._current_dict = self.dicts[lang]
+    else:                  self._current_dict = self.dicts[lang] = {}
     
   def get_lang(self): return self._lang
   lang = property(get_lang, set_lang)
@@ -69,11 +70,37 @@ class Translator(object):
     if ra and rb: return ra % rb
     return self._default_dict.get(s) or self._default_dict.get(a, a) % self._default_dict.get(b, b)
   
-  def from_entity(self, e):
-    return e.label.get_lang_first(self._lang) or e.label.get_lang_first(self._default_lang) or e.name
   
-  def from_annotation(self, annot):
-    return annot.get_lang_first(self._lang) or annot.get_lang_first(self._default_lang) or annot.first() or ""
+  if sys.platform == "brython":
+    def get_lang_first(self, l, lang):
+      if lang.endswith("_any"):
+        shorter = lang[:-4]
+        for x in L:
+          if isinstance(x, locstr) and ((x.lang == shorter) or x.lang.startswith("%s_" % shorter) or x.lang.startswith("%s-" % shorter)): return str(x)
+      elif len(lang) > 3:
+        lang  = lang.casefold()
+        lang2 = lang.replace("_", "-").casefold()
+        for x in l:
+          if isinstance(x, locstr) and ((x.lang.casefold() == lang) or (x.lang.casefold() == lang2)): return str(x)
+      else:
+        for x in l:
+          if isinstance(x, locstr) and (x.lang == lang): return str(x)
+      return ""
+    
+    def from_entity(self, e):
+      labels = getattr(e, "label", [])
+      return self.get_lang_first(labels, self._lang) or self.get_lang_first(labels, self._default_lang) or e.name.replace("_", " ")
+    
+    def from_annotation(self, annot):
+      return self.get_lang_first(annot, self._lang) or self.get_lang_first(annot, self._default_lang) or (annot[0] if annot else "")
+    
+  else:
+    def from_entity(self, e):
+      return e.label.get_lang_first(self._lang) or e.label.get_lang_first(self._default_lang) or e.name.replace("_", " ")
+    
+    def from_annotation(self, annot):
+      return annot.get_lang_first(self._lang) or annot.get_lang_first(self._default_lang) or annot.first() or ""
+    
   
   def dict_from_annotation(self, annot):
     return { getattr(i, "lang", "") : str(i) for i in annot }

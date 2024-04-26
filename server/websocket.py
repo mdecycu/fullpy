@@ -56,8 +56,8 @@ class GUnicornWebSocketManager(BaseWebSocketManager):
         if message == "":  continue
         
         func_name, call_id, data = message.split(" ", 2)
+        if self.debug: print("%s Message received from %s%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session.user and ("%s@" % session.user.login) or "", address, func_name, data[1:-1]), file = sys.stderr)
         data = self.serializer.decode(data)
-        if self.debug: print("%s Message received from %s%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session.user and ("%s@" % session.user.login) or "", address, func_name, repr(data)[1:-1]), file = sys.stderr)
         call_id = int(call_id)
         
         if func_name == "__ok__":

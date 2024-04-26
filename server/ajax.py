@@ -64,8 +64,8 @@ class AjaxManager(BaseManager):
           def wrapper(func = func):
             if self.debug:
               raw_data = flask.request.data.decode("utf8")
+              print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], raw_data[1:-1]), file = sys.stderr)
               session_token, *data = self.serializer.decode(raw_data)
-              print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
             return self.serializer.encode(func(None, *data))
           
         else:
@@ -74,7 +74,7 @@ class AjaxManager(BaseManager):
             session_token, *data = self.serializer.decode(raw_data)
             session = self._get_ajax_session(session_token)
             
-            if self.debug: print("%s Message received from %s%s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session and session.user and ("%s@" % session.user.login) or "", flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+            if self.debug: print("%s Message received from %s%s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), session and session.user and ("%s@" % session.user.login) or "", flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], raw_data[1:-1]), file = sys.stderr)
             if session is None:
               if self.debug: print("Invalid session %s: %s(%s)" % (session_token, func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
               return ""
@@ -85,7 +85,7 @@ class AjaxManager(BaseManager):
         def wrapper(func = func):
           raw_data = flask.request.data.decode("utf8")
           data = self.serializer.decode(raw_data)
-          if self.debug: print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], repr(data)[1:-1]), file = sys.stderr)
+          if self.debug: print("%s Message received from %s:%s: %s(%s)" % (datetime.datetime.now().strftime("%d/%m/%y,%H:%M"), flask.request.environ["REMOTE_ADDR"], flask.request.environ["REMOTE_PORT"], func.__name__[7:], raw_data[1:-1]), file = sys.stderr)
           return self.serializer.encode(func(None, *data))
         
       wrapper.__name__ = func_name

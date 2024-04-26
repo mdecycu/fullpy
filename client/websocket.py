@@ -81,7 +81,6 @@ class WebSocketManager(object):
           sys.excepthook(*sys.exc_info())
           
     else:
-      #func = getattr(webapp, "client_%s" % func_name, None)
       func = webapp.rpc_funcs["client_%s" % func_name]
       if not func: print("No such client func: '%s'" % func_name)
       try:

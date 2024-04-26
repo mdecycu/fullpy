@@ -1,4 +1,4 @@
-#popup_window {
+.popup_window {
   position: fixed;
   width: 100%;
   min-height: 100%;
@@ -7,7 +7,7 @@
   z-index: 1;
   background-color: rgba(0, 0, 0, 0.5);
 }
-#popup_window_content {
+.popup_window_content {
   background-color: white;
   border-radius: 0.7em;
   margin-left: auto;

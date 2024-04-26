@@ -131,7 +131,7 @@ def load_script(path):
     parent_module_name = parent_module_name.rsplit(".", 1)[0]
     if not parent_module_name in imports: imports.append(parent_module_name)
     
-  if src: print("load script %s:" % path, module_name, ":", ext, imports)
+  #if src: print("load script %s:" % path, module_name, ":", ext, imports)
   
   for name in imports: load_user_module(name)
     
@@ -165,7 +165,7 @@ def load_user_module(name):
     return
   
   module_name, ext, src, imports = load(path)
-  if src: print("load module %s:" % name, module_name, ":", ext, imports)
+  #if src: print("load module %s:" % name, module_name, ":", ext, imports)
   
   for name2 in imports: load_user_module(name2)
   
@@ -182,9 +182,21 @@ def load(path):
     except:
       logger.error("Unable to read %s", path)
       return "", "", "", []
-      
+
+  lines = []
+  in_not_brython = False
+  for line in src.split("\\n"):
+    if line.startswith(('''if sys.platform != "brython":''', '''if sys.platform != 'brython':''')):
+      in_not_brython = True
+      continue
+    if in_not_brython:
+      if not line.startswith((" ", "\\t")): in_not_brython = False
+    if not in_not_brython:
+      lines.append(line)
+  src2 = "\\n".join(lines)
+  
   mf = ModulesFinder(os.path.dirname(path))
-  imports = sorted(list(mf.get_imports(src)))
+  imports = sorted(list(mf.get_imports(src2)))
   if "" in imports: imports.remove("")
   for i, module in enumerate(imports):
     if module.startswith("."): imports[i] = "%s%s" % (name, module)

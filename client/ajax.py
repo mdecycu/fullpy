@@ -60,7 +60,6 @@ class SessionAjaxManager(AjaxManager):
           webapp._open_session(done2)
           
         elif done:
-          print(req.text)
           done(self.serializer.decode(req.text))
           
       except Exception as e:

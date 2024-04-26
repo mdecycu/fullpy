@@ -18,23 +18,73 @@
 
 __all__ = ["Serializer"]
 
-import weakref
+import sys, weakref
 from datetime import date, datetime, timedelta
+
+import fullpy
 from fullpy.util import TRANS
 
+normstr = locstr = ()
+def _create_spc_str():
+  global normstr, locstr
+  class normstr(str):
+    def __repr__(self): return """normstr(%s)""" % repr(str(self))
+    
+  class locstr(str):
+    def __new__(Class, s, lang = ""): return str.__new__(Class, s)
+
+    def __repr__(self): return """locstr(%s, %s)""" % (repr(str(self)), repr(self.lang))
+
+    def __init__(self, s, lang = ""):
+      str.__init__(self)
+      self.lang = lang
+      
+    def __eq__(self, other):
+      return isinstance(other, locstr) and str.__eq__(self, other) and (self.lang == other.lang)
+
+    def __ne__(self, other):
+      return (not isinstance(other, locstr)) or str.__ne__(self, other) or (self.lang != other.lang)
+
+    def __hash__(self): return hash((str(self), self.lang))
+    
+if sys.platform == "brython": _create_spc_str()
 
 _not_found = object()
 
 _NUMBER = set("-+0123456789e.")
 
-def _encode_basestring(s):  return '"%s"' % s.replace('"', '\\"')
 
-def _scanstring(s, i):
+def _encode_basestring(s): return '"%s"' % s.replace('"', '\\"')
+
+# def _scanstring(s, i):
+#   e = s.find('"', i)
+#   if s[e - 1] == "\\":
+#     r, j = _scanstring(s, e + 1)
+#     return '%s"%s' % (s[i : e - 1], r), j
+#   return s[i : e], e + 1
+
+def _scanstring(s, i, first = True):
   e = s.find('"', i)
   if s[e - 1] == "\\":
+    r, j = _scanstring(s, e + 1, False)
+    r = '%s"%s' % (s[i : e - 1], r)
+  else:
+    r = s[i : e]
+    j = e + 1
+  if first and (len(s) > j):
+    #if   s[j] == "n": r = normstr(r); j += 1
+    if s[j] == "@": r = locstr(r, s[j + 1 : j + 3]); j += 3
+  return r, j
+
+def _encode_normstring(s): return "'%s'" % s.replace("'", "\\'")
+
+def _scan_normstring(s, i):
+  e = s.find("'", i)
+  if s[e - 1] == "\\":
     r, j = _scanstring(s, e + 1)
-    return '%s"%s' % (s[i : e - 1], r), j
+    return "%s'%s" % (s[i : e - 1], r), j
   return s[i : e], e + 1
+
 
 
 class Serializer(object):
@@ -49,14 +99,20 @@ class Serializer(object):
     
     # For decoding
     self._cache_storid = weakref.WeakValueDictionary()
-    self._cache_id     = weakref.WeakValueDictionary()
+    #self._cache_id     = weakref.WeakValueDictionary()
+    self._cache_id     = {}
     self.modules_proxy = _ModuleProxy()
     
     self.set_world(world)
     
   def set_world(self, world):
     self.world = world
-    if world: self.class_encode_funcs[world._get_by_storid(34).__class__] = self.for_ontology_class # 34 = Thing
+    if world:
+      self.class_encode_funcs[world._get_by_storid(34).__class__] = self.for_ontology_class # 34 = Thing
+      global normstr, locstr
+      import owlready2
+      normstr = owlready2.normstr
+      locstr  = owlready2.locstr
     
   def get_by_storid(self, storid): return self._cache_storid.get(storid)
   
@@ -131,14 +187,20 @@ class Serializer(object):
     if x is None:  return "null"
     if x is False: return "false"
     if x is True:  return "true"
+    if isinstance(x, normstr): return _encode_normstring(x)
+    if isinstance(x, locstr): return '%s@%s' % (_encode_basestring(x), x.lang) 
     if isinstance(x, str): return _encode_basestring(x)
-    if isinstance(x, (int, float, bytes)): return repr(x)
+    if isinstance(x, (int, float)): return repr(x)
+    if isinstance(x, bytes): return 'b"%s"' % x.replace(b'"', b'\\"').decode("ascii")
     if isinstance(x, list):  return "[%s]" % ",".join(self._encode(i, dico) for i in x)
     if isinstance(x, tuple): return "(%s)" % ",".join(self._encode(i, dico) for i in x)
-    if isinstance(x, dict): return "{%s}" % ",".join("%s:%s" % (self._encode(k, dico), self._encode(v, dico)) for (k, v) in x.items())
+    if isinstance(x, set):   return "set([%s])" % ",".join(self._encode(i, dico) for i in x)
+    if isinstance(x, dict):  return "{%s}" % ",".join("%s:%s" % (self._encode(k, dico), self._encode(v, dico)) for (k, v) in x.items())
     if isinstance(x, datetime):  return "datetime(%s)" % ",".join(str(i) for i in x.timetuple()[:7])
     if isinstance(x, date):      return "date(%s,%s,%s)" % (x.year, x.month, x.day)
     if isinstance(x, timedelta): return "timedelta(%s,%s,%s)" % (x.days, x.seconds, x.microseconds)
+    if isinstance(x, _ModuleProxy): return """onto("%s")""" % x.base_iri
+    if self.world and isinstance(x, self.world.ontologies["http://anonymous/"].__class__): return """onto("%s")""" % x.base_iri
     
     storid = getattr(x, "storid", None)
     if x in dico:
@@ -182,12 +244,19 @@ class Serializer(object):
     id = dico.get(klass)
     if id: return id      
     return self._encode(klass, dico)
-    
-  def decode(self, s): return self._decode(s, 0)[0]
+  
+  def decode(self, s):
+    r = self._decode(s, 0)[0]
+    self._cache_id.clear()
+    return r
   
   def _decode(self, s, i):
     if   s[i] == '"': return _scanstring(s, i + 1)
     
+    elif s[i] == "'":
+       r, i = _scan_normstring(s, i + 1)
+       return normstr(r), i
+     
     elif s[i] == "[":
       r = []
       if s[i + 1] == "]": return r, i + 2
@@ -257,8 +326,8 @@ class Serializer(object):
         return r, i + 1 # + 1 for }
       
     elif s.startswith('{"$id"', i):
-      id, i = self._decode(s, i + 7)
-      r = self._cache_id.get(id)
+      objid, i = self._decode(s, i + 7)
+      r = self._cache_id.get(objid)
       if s[i] == "}": return r, i + 1
       
       category = s[i + 2: i + 8]
@@ -266,19 +335,20 @@ class Serializer(object):
         klass, i = self._decode(s, i + 10)
         if not callable(klass): klass = self._cache_id[klass]
         if not r:
+          d = {}
+          while s[i] != "}":
+            k, i = self._decode(s, i + 1) # + 1 for ,
+            v, i = self._decode(s, i + 1) # + 1 for :
+            d[k] = v
           if getattr(klass, "__remote_name__", None) in self.class_decode_funcs:
-            d = {}
-            while s[i] != "}":
-              k, i = self._decode(s, i + 1) # + 1 for ,
-              v, i = self._decode(s, i + 1) # + 1 for :
-              d[k] = v
-            r = self._cache_id[id] = self.class_decode_funcs[klass.__remote_name__](**d)
+            r = self._cache_id[objid] = self.class_decode_funcs[klass.__remote_name__](**d)
           else:
-            r = self._cache_id[id] = klass()
-        while s[i] != "}":
-          k, i = self._decode(s, i + 1) # + 1 for ,
-          v, i = self._decode(s, i + 1) # + 1 for :
-          setattr(r, k, v)
+            r = self._cache_id[objid] = klass(**d)
+        else:
+          while s[i] != "}":
+            k, i = self._decode(s, i + 1) # + 1 for ,
+            v, i = self._decode(s, i + 1) # + 1 for :
+            setattr(r, k, v)
         return r, i + 1 # + 1 for }
       
       elif category == "$bases":
@@ -300,9 +370,9 @@ class Serializer(object):
           module = self.modules_proxy.get_submodule(module_name)
           r = module.get_class(name)
           if r:
-            self._cache_id[id] = r
+            self._cache_id[objid] = r
           else:
-            r = self._cache_id[id] = type(name, tuple(bases) or (_PythonObjProxy,), {})
+            r = self._cache_id[objid] = type(name, tuple(bases) or (_PythonObjProxy,), {})
             r.__module__      = module_name
             r.__remote_name__ = name0
             if d: r.__dict__.update(d)
@@ -333,7 +403,25 @@ class Serializer(object):
     elif s.startswith("timedelta(", i):
       j = s.find(")", i + 10)
       return timedelta(*(int(i) for i in s[i + 10 : j].split(","))), j + 1
-
+    
+    elif s.startswith("onto(", i):
+      base_iri, i = _scanstring(s, i + 6)
+      onto = (self.world or self.modules_proxy).get_ontology(base_iri)
+      return onto, i + 1
+    
+    elif s[i] == "s": # set([...])
+      i += 4
+      r = set()
+      if s[i + 1] == "]": return r, i + 3
+      while s[i] != "]":
+        o, i = self._decode(s, i + 1)
+        r.add(o)
+      return r, i + 2
+    
+    elif s[i] == "b":
+       r, i = _scanstring(s, i + 2)
+       return bytes(r, "ascii"), i
+     
     if s[i] in _NUMBER:
       j = i + 1
       while s[j] in _NUMBER: j +=1
@@ -369,9 +457,11 @@ class _ModuleProxy(type): # Inherits from type so as missing classes are treated
   
   def __getitem__(self, name): return getattr(self, name)
   
-  def get_ontology(self, iri):
-    if (not iri.endswith("/")) and (not iri.endswith("#")): iri = "%s#" % iri
-    return getattr(self, iri)
+  def get_ontology(self, base_iri):
+    if (not base_iri.endswith("/")) and (not base_iri.endswith("#")): base_iri = "%s#" % base_iri
+    r = getattr(self, base_iri)
+    r.base_iri = base_iri
+    return r
   
   def get_submodule(self, name):
     module = self
@@ -380,7 +470,6 @@ class _ModuleProxy(type): # Inherits from type so as missing classes are treated
   
   def get_class(self, name):
     if name in self._classnames:
-      print("GET CLASS FOUND", getattr(self, name))
       return getattr(self, name)
     return None
   
@@ -393,7 +482,7 @@ class _ModuleProxy(type): # Inherits from type so as missing classes are treated
     setattr(self, klass.__name__, klass)
     self._classnames.add(klass.__name__)
     
-  
+    
 def _simple_repr(x):
   if isinstance(x, _ObjProxy): return x.__simplerepr__()
   if isinstance(x, list): return "[%s]" % ", ".join(_simple_repr(i) for i in x)
@@ -405,6 +494,9 @@ class _ObjProxy(object):
     return "<%s %s>" % (self.__class__.__name__, " ".join("%s=%s" % (k, _simple_repr(v)) for k, v in self.__dict__.items() if not k.startswith("_")))
 
 class _PythonObjProxy(_ObjProxy):
+  def __init__(self, **d):
+    if d: self.__dict__ = d
+    
   def __simplerepr__(self): return "<%s>" % self.__class__.__name__
 
 class _OntologyObjProxy(_ObjProxy):
